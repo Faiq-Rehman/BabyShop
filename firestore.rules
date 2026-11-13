@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && (request.auth.token.get('admin', false) == true
+          || request.auth.token.get('email', '') == 'hamzakhan13102004@gmail.com');
+    }
+
+    function ownsUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validCustomerOrder() {
+      let data = request.resource.data;
+      let delivery = data.deliveryDetails;
+      return signedIn()
+        && data.keys().hasOnly([
+          'userId', 'items', 'itemCount', 'subtotal', 'shipping', 'total',
+          'address', 'deliveryDetails', 'paymentMethod', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.userId == request.auth.uid
+        && data.items is list
+        && data.items.size() > 0
+        && data.items.size() <= 100
+        && data.itemCount is int
+        && data.itemCount > 0
+        && data.subtotal is number
+        && data.subtotal >= 0
+        && data.shipping == 0
+        && data.total is number
+        && data.total == data.subtotal
+        && data.address is string
+        && data.address.size() > 0
+        && delivery is map
+        && delivery.keys().hasOnly([
+          'fullName', 'phone', 'province', 'city', 'area', 'address',
+          'landmark', 'postalCode', 'deliveryInstructions', 'country'
+        ])
+        && delivery.fullName is string
+        && delivery.fullName.size() >= 3
+        && delivery.fullName.size() <= 100
+        && delivery.phone is string
+        && delivery.phone.size() >= 10
+        && delivery.phone.size() <= 16
+        && delivery.province is string
+        && delivery.province.size() > 0
+        && delivery.province.size() <= 60
+        && delivery.city is string
+        && delivery.city.size() > 0
+        && delivery.city.size() <= 80
+        && delivery.area is string
+        && delivery.area.size() > 0
+        && delivery.area.size() <= 100
+        && delivery.address is string
+        && delivery.address.size() >= 5
+        && delivery.address.size() <= 300
+        && delivery.landmark is string
+        && delivery.landmark.size() <= 120
+        && delivery.postalCode is string
+        && delivery.postalCode.size() <= 20
+        && delivery.deliveryInstructions is string
+        && delivery.deliveryInstructions.size() <= 300
+        && delivery.country == 'Pakistan'
+        && data.paymentMethod == 'cash_on_delivery'
+        && data.status == 'pending'
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    match /products/{productId} {
+      allow read: if resource.data.isActive == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if resource.data.isActive == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if ownsUser(userId) || isAdmin();
+      allow create: if ownsUser(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'customer';
+      allow update: if ownsUser(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'phone', 'updatedAt']);
+      allow delete: if isAdmin();
+
+      match /cart/{productId} {
+        allow read, delete: if ownsUser(userId) || isAdmin();
+        allow create, update: if ownsUser(userId)
+          && request.resource.data.productId == productId
+          && request.resource.data.quantity is int
+          && request.resource.data.quantity > 0
+          && request.resource.data.keys().hasOnly([
+            'productId', 'name', 'imageUrl', 'price', 'quantity', 'updatedAt'
+          ])
+          && exists(/databases/$(database)/documents/products/$(productId))
+          && get(/databases/$(database)/documents/products/$(productId)).data.isActive == true
+          && request.resource.data.quantity
+            <= get(/databases/$(database)/documents/products/$(productId)).data.stock;
+      }
+
+      match /wishlist/{productId} {
+        allow read, delete: if ownsUser(userId) || isAdmin();
+        allow create, update: if ownsUser(userId)
+          && request.resource.data.productId == productId
+          && request.resource.data.keys().hasOnly([
+            'productId', 'name', 'imageUrl', 'price', 'createdAt'
+          ]);
+      }
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin() || validCustomerOrder();
+      allow update, delete: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.keys().hasOnly([
+          'userId', 'email', 'message', 'status', 'createdAt'
+        ]);
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.comment is string
+        && request.resource.data.keys().hasOnly([
+          'userId', 'productId', 'rating', 'comment', 'createdAt', 'updatedAt'
+        ]);
+      allow update, delete: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+    "name": "BabyShop",
+    "short_name": "BabyShop",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#FBF9F3",
+    "theme_color": "#183B2E",
+    "description": "Thoughtful essentials for every growing family.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

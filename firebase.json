@@ -1,0 +1,33 @@
+{
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "babyshophub-79a88",
+          "appId": "1:181506596089:android:771ccc708417b3aef31628",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "babyshophub-79a88",
+          "configurations": {
+            "android": "1:181506596089:android:771ccc708417b3aef31628",
+            "ios": "1:181506596089:ios:0e8f1044b7eea6f0f31628",
+            "macos": "1:181506596089:ios:0e8f1044b7eea6f0f31628",
+            "web": "1:181506596089:web:eeb6ce96eaeb229bf31628",
+            "windows": "1:181506596089:web:d4d80a537722b46cf31628"
+          }
+        }
+      }
+    }
+  }
+}
