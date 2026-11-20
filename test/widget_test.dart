@@ -11,10 +11,52 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:babyshop/models/product.dart';
 import 'package:babyshop/models/delivery_details.dart';
+import 'package:babyshop/core/utils/validators.dart';
 import 'package:babyshop/core/widgets/success_popup.dart';
 import 'package:babyshop/widgets/store_message_state.dart';
 
 void main() {
+  test('delivery details can be safely restored from null or map fields', () {
+    final empty = DeliveryDetails.fromMap(null);
+    expect(empty.fullName, isEmpty);
+    expect(empty.isComplete, isFalse);
+
+    final partial = DeliveryDetails.fromMap({
+      'fullName': 'Fatima',
+      'city': 'Karachi',
+    });
+    expect(partial.fullName, 'Fatima');
+    expect(partial.city, 'Karachi');
+    expect(partial.phone, isEmpty);
+    expect(partial.isComplete, isFalse);
+
+    final full = DeliveryDetails.fromMap({
+      'fullName': 'Fatima Ali',
+      'phone': '03211234567',
+      'province': 'Sindh',
+      'city': 'Karachi',
+      'area': 'Clifton',
+      'address': 'Block 4, Marine Drive',
+      'landmark': 'Near Beach',
+      'postalCode': '75600',
+      'deliveryInstructions': 'Leave at gate',
+    });
+    expect(full.isComplete, isTrue);
+    expect(full.formattedAddress, 'Block 4, Marine Drive, Clifton, Karachi, Sindh, 75600, Pakistan');
+  });
+
+  test('phone and required validators handle edge cases correctly', () {
+    expect(Validators.validatePhone('03001234567'), isNull);
+    expect(Validators.validatePhone('+923001234567'), isNull);
+    expect(Validators.validatePhone('00923001234567'), isNull);
+    expect(Validators.validatePhone('0300-1234567'), isNull);
+    expect(Validators.validatePhone('12345'), isNotNull);
+    expect(Validators.validatePhone(''), isNotNull);
+
+    expect(Validators.requiredField('abc', 'name', minimum: 3), isNull);
+    expect(Validators.requiredField('ab', 'name', minimum: 3), isNotNull);
+    expect(Validators.requiredField(null, 'name'), isNotNull);
+  });
   test('delivery details are saved as structured Pakistan address fields', () {
     const details = DeliveryDetails(
       fullName: '  Ayesha Khan ',

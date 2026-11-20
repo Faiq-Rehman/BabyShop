@@ -79,14 +79,7 @@ class _ProductCardState extends State<ProductCard> {
                   children: [
                     Container(
                       color: AppColors.warmBeige,
-                      child: ClipRect(
-                        child: AnimatedScale(
-                          scale: _hovered ? 1.05 : 1.0,
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeOut,
-                          child: ProductImage(url: product.imageUrl),
-                        ),
-                      ),
+                      child: ProductImage(url: product.imageUrl),
                     ),
                     Positioned(
                       left: 8,

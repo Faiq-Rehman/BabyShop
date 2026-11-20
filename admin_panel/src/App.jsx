@@ -28,6 +28,8 @@ const config = {
 };
 const configured = Object.values(config).every(Boolean);
 const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
+const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "xbflk22h";
+const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "BabyShop";
 const app = configured ? initializeApp(config) : null;
 const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;
@@ -52,16 +54,34 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [form, setForm] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedImagePreview, setSelectedImagePreview] = useState("");
+  const [savingProduct, setSavingProduct] = useState(false);
   const [categoryForm, setCategoryForm] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [range, setRange] = useState("30d");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  useEffect(() => {
+    if (!selectedImage) {
+      setSelectedImagePreview("");
+      return undefined;
+    }
+    const previewUrl = URL.createObjectURL(selectedImage);
+    setSelectedImagePreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [selectedImage]);
+
+  function closeProductForm() {
+    setForm(null);
+    setSelectedImage(null);
+  }
+
   // Close modals on Escape key
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === "Escape") {
-        if (form) setForm(null);
+        if (form) closeProductForm();
         if (categoryForm) setCategoryForm(null);
         if (selectedOrder) setSelectedOrder(null);
       }
@@ -69,6 +89,24 @@ export default function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [form, categoryForm, selectedOrder]);
+
+  async function uploadProductImage(file) {
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    uploadData.append("upload_preset", cloudinaryUploadPreset);
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
+      { method: "POST", body: uploadData },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error?.message || `Image upload failed (${response.status}).`);
+    }
+    if (typeof result.secure_url !== "string" || !result.secure_url) {
+      throw new Error("Cloudinary did not return a secure image URL.");
+    }
+    return result.secure_url;
+  }
 
   useEffect(() => {
     if (!auth) return undefined;
@@ -116,21 +154,27 @@ export default function App() {
     setError("");
     const data = new FormData(event.currentTarget);
     try {
-      await signInWithEmailAndPassword(auth, data.get("email"), data.get("password"));
+      await signInWithEmailAndPassword(
+        auth,
+        String(data.get("email") || "").trim(),
+        data.get("password"),
+      );
     } catch (reason) {
-      setError(reason.message);
+      setError(reason.code === "auth/invalid-credential"
+        ? "Email or password was not accepted. Check the Firebase account and Email/Password sign-in settings."
+        : reason.message);
     }
   }
 
   async function saveProduct(event) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const existingImageUrl = form.imageUrl?.trim() || "";
     const product = {
       name: data.get("name").trim(),
       brand: data.get("brand").trim(),
       categoryName: data.get("categoryName").trim(),
       description: data.get("description").trim(),
-      imageUrl: data.get("imageUrl").trim(),
       price: Number(data.get("price")),
       stock: Number(data.get("stock")),
       isActive: data.get("isActive") === "on",
@@ -141,13 +185,24 @@ export default function App() {
       setError("Enter a product name, valid price, and whole-number stock.");
       return;
     }
+    if (!selectedImage && !existingImageUrl) {
+      setError("Choose a product image from your device.");
+      return;
+    }
+    setSavingProduct(true);
+    setError("");
     try {
+      product.imageUrl = selectedImage
+        ? await uploadProductImage(selectedImage)
+        : existingImageUrl;
       if (form?.id) await updateDoc(doc(db, "products", form.id), product);
       else await addDoc(collection(db, "products"), { ...product, createdAt: serverTimestamp() });
-      setForm(null);
+      closeProductForm();
       setError("");
     } catch (reason) {
       setError(reason.message);
+    } finally {
+      setSavingProduct(false);
     }
   }
 
@@ -260,7 +315,13 @@ export default function App() {
         <p>A World of Little Wonders · Admin Sign In</p>
         {error && <div className="alert alert-danger">{error}</div>}
         <label className="form-label">Email</label>
-        <input name="email" className="form-control mb-3" type="email" required />
+        <input
+          name="email"
+          className="form-control mb-3"
+          type="email"
+          defaultValue="hamzakhan13102004@gmail.com"
+          required
+        />
         <label className="form-label">Password</label>
         <input name="password" className="form-control mb-4" type="password" required />
         <button className="btn btn-green w-100">Sign in to BabyShop</button>
@@ -315,7 +376,7 @@ export default function App() {
         <span className="admin-email">{user.email}</span>
       </header>
 
-      {error && <div className="alert alert-danger">{error}<button className="btn-close float-end" onClick={() => setError("")} /></div>}
+      {error && !form && <div className="alert alert-danger">{error}<button className="btn-close float-end" onClick={() => setError("")} /></div>}
 
       {page === "Overview" && <section className="dashboard-content">
         <div className="welcome-row">
@@ -386,7 +447,7 @@ export default function App() {
       {page === "Products" && <section className="content-card">
         <div className="section-heading">
           <div><span className="eyebrow">CATALOG</span><h3>Products</h3></div>
-          <button className="btn btn-green" onClick={() => setForm({})}>Add product</button>
+          <button className="btn btn-green" onClick={() => { setSelectedImage(null); setForm({}); }}>Add product</button>
         </div>
         <div className="table-responsive"><table className="table align-middle">
           <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th /></tr></thead>
@@ -395,7 +456,7 @@ export default function App() {
             <td>{product.categoryName ?? product.category}</td><td>${Number(product.price ?? 0).toFixed(2)}</td>
             <td>{product.stock ?? 0}</td><td><span className="status-pill">{product.isActive ? "Active" : "Hidden"}</span></td>
             <td className="text-end">
-              <button className="btn btn-sm btn-outline-success me-2" onClick={() => setForm({ ...product })}>Edit</button>
+              <button className="btn btn-sm btn-outline-success me-2" onClick={() => { setSelectedImage(null); setForm({ ...product }); }}>Edit</button>
               <button className="btn btn-sm btn-outline-danger" onClick={async () => {
                 if (window.confirm(`Delete ${product.name}?`)) {
                   try { await deleteDoc(doc(db, "products", product.id)); } catch (reason) { setError(reason.message); }
@@ -426,18 +487,20 @@ export default function App() {
         <div className="table-responsive"><table className="table align-middle"><thead><tr><th>Customer</th><th>Message</th><th>Submitted</th><th>Status</th><th>Update</th></tr></thead><tbody>{tickets.map(ticket=><tr key={ticket.id}><td>{ticket.email || ticket.userId || "Customer"}</td><td className="ticket-message">{ticket.message}</td><td>{ticket.createdAt?.toDate?.().toLocaleDateString() ?? "—"}</td><td><span className="status-pill">{ticket.status || "open"}</span></td><td><select className="form-select form-select-sm" value={ticket.status || "open"} onChange={async event=>{try{await updateDoc(doc(db,"supportTickets",ticket.id),{status:event.target.value,updatedAt:serverTimestamp()});setError("");}catch(reason){setError(reason.message);}}}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></td></tr>)}</tbody></table></div>
         {!tickets.length && <p className="empty-note">No support requests yet.</p>}
       </section>}
+
     </main>
 
     {/* Section 13: Product Transparent Top-Level Overlay */}
     {form && (
-      <div className="admin-overlay-backdrop" onClick={() => setForm(null)}>
+      <div className="admin-overlay-backdrop" onClick={closeProductForm}>
         <div className="admin-overlay-card" onClick={(e) => e.stopPropagation()}>
           <div className="admin-overlay-header">
             <h4>{form.id ? "Edit Product" : "New Luxury Product"}</h4>
-            <button type="button" className="admin-overlay-close" aria-label="Close" onClick={() => setForm(null)}>✕</button>
+            <button type="button" className="admin-overlay-close" aria-label="Close" onClick={closeProductForm}>✕</button>
           </div>
           <div className="admin-overlay-body">
             <form onSubmit={saveProduct}>
+              {error && <div className="alert alert-danger" role="alert">{error}</div>}
               <div className="form-grid">
                 {["name", "brand"].map((key) =>
                   <label className="form-label" key={key}>{key}
@@ -449,17 +512,33 @@ export default function App() {
                       .map((category) => <option key={category.id} value={category.name}>{category.name}</option>)}
                   </select>
                 </label>
-                <label className="form-label">Image URL
-                  <input className="form-control" name="imageUrl" defaultValue={form.imageUrl ?? ""} placeholder="https://..." />
+                <label className="form-label">Product image
+                  <input className="form-control" name="image" type="file" accept="image/*"
+                    required={!form.imageUrl} disabled={savingProduct}
+                    onChange={(event) => {
+                      const image = event.target.files?.[0] ?? null;
+                      if (image && !image.type.startsWith("image/")) {
+                        setError("Choose a valid image file.");
+                        event.target.value = "";
+                        return;
+                      }
+                      setSelectedImage(image);
+                      setError("");
+                    }} />
+                  <small className="text-muted">Image Cloudinary par Save product dabane par upload hogi.</small>
                 </label>
                 <label className="form-label">Price ($)<input className="form-control" name="price" type="number" min="0" step="0.01" defaultValue={form.price ?? ""} required /></label>
                 <label className="form-label">Stock<input className="form-control" name="stock" type="number" min="0" step="1" defaultValue={form.stock ?? ""} required /></label>
               </div>
+              {(selectedImagePreview || form.imageUrl) && <div className="product-image-preview">
+                <img src={selectedImagePreview || form.imageUrl} alt="Product preview" />
+                <span>{selectedImage ? selectedImage.name : "Current product image"}</span>
+              </div>}
               <label className="form-label w-100 mt-2">Description<textarea className="form-control" name="description" rows={3} defaultValue={form.description ?? ""} /></label>
               <label className="form-check my-3"><input className="form-check-input" type="checkbox" name="isActive" defaultChecked={form.isActive ?? true} /> Active (visible to customers)</label>
               <div className="d-flex justify-content-end gap-2 pt-2">
-                <button type="button" className="btn btn-outline-secondary" onClick={() => setForm(null)}>Cancel</button>
-                <button type="submit" className="btn btn-green">Save product</button>
+                <button type="button" className="btn btn-outline-secondary" onClick={closeProductForm} disabled={savingProduct}>Cancel</button>
+                <button type="submit" className="btn btn-green" disabled={savingProduct}>{savingProduct ? "Uploading & saving..." : "Save product"}</button>
               </div>
             </form>
           </div>

@@ -15,29 +15,8 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function validCustomerOrder() {
-      let data = request.resource.data;
-      let delivery = data.deliveryDetails;
-      return signedIn()
-        && data.keys().hasOnly([
-          'userId', 'items', 'itemCount', 'subtotal', 'shipping', 'total',
-          'address', 'deliveryDetails', 'paymentMethod', 'status',
-          'createdAt', 'updatedAt'
-        ])
-        && data.userId == request.auth.uid
-        && data.items is list
-        && data.items.size() > 0
-        && data.items.size() <= 100
-        && data.itemCount is int
-        && data.itemCount > 0
-        && data.subtotal is number
-        && data.subtotal >= 0
-        && data.shipping == 0
-        && data.total is number
-        && data.total == data.subtotal
-        && data.address is string
-        && data.address.size() > 0
-        && delivery is map
+    function validDeliveryDetails(delivery) {
+      return delivery is map
         && delivery.keys().hasOnly([
           'fullName', 'phone', 'province', 'city', 'area', 'address',
           'landmark', 'postalCode', 'deliveryInstructions', 'country'
@@ -66,7 +45,32 @@ service cloud.firestore {
         && delivery.postalCode.size() <= 20
         && delivery.deliveryInstructions is string
         && delivery.deliveryInstructions.size() <= 300
-        && delivery.country == 'Pakistan'
+        && delivery.country == 'Pakistan';
+    }
+
+    function validCustomerOrder() {
+      let data = request.resource.data;
+      let delivery = data.deliveryDetails;
+      return signedIn()
+        && data.keys().hasOnly([
+          'userId', 'items', 'itemCount', 'subtotal', 'shipping', 'total',
+          'address', 'deliveryDetails', 'paymentMethod', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.userId == request.auth.uid
+        && data.items is list
+        && data.items.size() > 0
+        && data.items.size() <= 100
+        && data.itemCount is int
+        && data.itemCount > 0
+        && data.subtotal is number
+        && data.subtotal >= 0
+        && data.shipping == 0
+        && data.total is number
+        && data.total == data.subtotal
+        && data.address is string
+        && data.address.size() > 0
+        && validDeliveryDetails(delivery)
         && data.paymentMethod == 'cash_on_delivery'
         && data.status == 'pending'
         && data.createdAt == request.time
@@ -90,7 +94,9 @@ service cloud.firestore {
         && request.resource.data.role == 'customer';
       allow update: if ownsUser(userId)
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['name', 'phone', 'updatedAt']);
+          .hasOnly(['name', 'phone', 'deliveryDetails', 'updatedAt'])
+        && (!('deliveryDetails' in request.resource.data)
+          || validDeliveryDetails(request.resource.data.deliveryDetails));
       allow delete: if isAdmin();
 
       match /cart/{productId} {

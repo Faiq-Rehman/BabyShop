@@ -12,6 +12,7 @@ import '../screens/home/shop_page.dart';
 import '../screens/orders/order_tracking_page.dart';
 import '../screens/orders/orders_page.dart';
 import '../screens/products/product_detail_page.dart';
+import '../screens/profile/profile_page.dart';
 import '../screens/support/support_page.dart';
 import '../screens/wishlist/wishlist_page.dart';
 import '../widgets/store_message_state.dart';
@@ -28,6 +29,7 @@ abstract final class AppRoutes {
   static const orders = '/orders';
   static const orderTracking = '/order-tracking';
   static const support = '/support';
+  static const profile = '/profile';
 
   static final Set<String> _activePushes = {};
 
@@ -95,6 +97,12 @@ abstract final class AppRoutes {
         );
       case support:
         page = const SupportPage();
+      case profile:
+        if (FirebaseAuth.instance.currentUser == null) {
+          page = const AuthPage();
+        } else {
+          page = const ProfilePage();
+        }
       default:
         return _invalidRoute(settings, 'This destination is not available.');
     }

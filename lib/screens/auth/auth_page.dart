@@ -1,9 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../services/shop_repository.dart';
+
+const _adminPanelUrl = String.fromEnvironment(
+  'ADMIN_PANEL_URL',
+  defaultValue: 'http://localhost:5173/admin',
+);
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -96,6 +102,22 @@ class _AuthPageState extends State<AuthPage> {
       }
     } on FirebaseAuthException catch (error) {
       setState(() => _error = _authError(error));
+    }
+  }
+
+  Future<void> _openAdminLogin() async {
+    try {
+      final opened = await launchUrl(
+        Uri.parse(_adminPanelUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        setState(() => _error = 'Unable to open the Admin Panel.');
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Unable to open the Admin Panel. ($error)');
+      }
     }
   }
 
@@ -359,6 +381,24 @@ class _AuthPageState extends State<AuthPage> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: _openAdminLogin,
+                              icon: const Icon(
+                                Icons.admin_panel_settings_outlined,
+                              ),
+                              label: const Text('Admin? Go to Admin Login'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.navy,
+                                side: const BorderSide(color: AppColors.gold),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 13,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                             ),

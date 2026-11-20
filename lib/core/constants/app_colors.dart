@@ -13,5 +13,5 @@ abstract final class AppColors {
   static const beige = warmBeige;
   static const cream = ivory;
   static const text = navy;
-  static const error = navy;
+  static const error = Color(0xFF9E3A3A);
 }

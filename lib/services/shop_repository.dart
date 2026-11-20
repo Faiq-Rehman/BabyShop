@@ -231,6 +231,58 @@ class ShopRepository {
     return (orderId: orderRef.id, total: total);
   }
 
+  Stream<DocumentSnapshot<Map<String, dynamic>>> userProfile() =>
+      _firestore.collection('users').doc(_uid).snapshots();
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> getUserProfile() =>
+      _firestore.collection('users').doc(_uid).get();
+
+  Future<void> updateProfile({
+    required String name,
+    required String phone,
+    required DeliveryDetails deliveryDetails,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('Sign in before updating your profile.');
+    }
+    final trimmedName = name.trim();
+    final trimmedPhone = phone.trim();
+    final userDoc = _firestore.collection('users').doc(user.uid);
+    final snapshot = await userDoc.get();
+
+    final deliveryMap = deliveryDetails.toMap();
+    deliveryMap['fullName'] = trimmedName;
+    deliveryMap['phone'] = trimmedPhone;
+
+    if (!snapshot.exists) {
+      await userDoc.set({
+        'uid': user.uid,
+        'name': trimmedName,
+        'phone': trimmedPhone,
+        'email': user.email ?? '',
+        'role': 'customer',
+        'isActive': true,
+        'deliveryDetails': deliveryMap,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      await userDoc.set({
+        'name': trimmedName,
+        'phone': trimmedPhone,
+        'deliveryDetails': deliveryMap,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    try {
+      await user.updateDisplayName(trimmedName);
+    } catch (_) {
+      // Ignored if auth display name update fails
+    }
+  }
+
   Future<void> submitSupport(String message) async {
     final user = _auth.currentUser;
     if (user == null) throw StateError('Sign in before contacting support.');

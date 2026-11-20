@@ -130,6 +130,8 @@ button, input, textarea, select { font: inherit; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .form-label { color: var(--navy); font-size: 12px; font-weight: 600; text-transform: capitalize; }
 .form-label .form-control { margin-top: 6px; }
+.product-image-preview { display: flex; align-items: center; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 12px; }
+.product-image-preview img { width: 72px; height: 72px; border: 1px solid var(--warm-beige); border-radius: 10px; background: var(--ivory); object-fit: contain; }
 .form-check { color: var(--navy); }
 .alert { border-radius: 12px; }
 

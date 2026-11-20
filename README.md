@@ -26,8 +26,8 @@ category performance, and low-stock monitoring. Category management includes
 create, edit, activation, and deletion for unused categories. Product CRUD and
 valid order status transitions are supported. Customer order tracking displays
 the order status progression recorded by the admin. Online payment, push
-notifications, saved delivery addresses, review submission/moderation, customer
-account activation, and advanced inventory history management are not included.
+notifications, review submission/moderation, customer account activation, and
+advanced inventory history management are not included.
 Online payment is intentionally not implemented.
 
 ## Requirements
@@ -58,11 +58,23 @@ flutter pub get
 flutter run
 ```
 
+The customer sign-in screen includes an **Admin? Go to Admin Login** button.
+It opens the separate admin app at `http://localhost:5173/admin` by default.
+When the admin app is hosted elsewhere, set its URL when running or building
+Flutter, for example:
+
+```powershell
+flutter run --dart-define=ADMIN_PANEL_URL=https://your-admin-host/admin
+```
+
 For the separate React admin app, create `admin_panel/.env` from
 `admin_panel/.env.example`, fill it with the Firebase web app configuration, and
 keep `VITE_ADMIN_EMAIL` set to the authorized admin account (or use an account
-with the Firebase custom claim `admin: true`), then
-run:
+with the Firebase custom claim `admin: true`). In Cloudinary, create an **unsigned
+upload preset** named `BabyShop`; the configured cloud name is `xbflk22h`. The
+admin app uploads product images from the device using that preset and saves
+Cloudinary's secure image URL in Firestore. Keep the preset restricted to image
+formats and reasonable upload sizes. Then run:
 
 ```powershell
 cd admin_panel
@@ -74,7 +86,10 @@ Open the admin dashboard at `http://localhost:5173/admin` (source path:
 `admin_panel/`). For this college-project setup, the Firebase Authentication
 account `hamzakhan13102004@gmail.com` is allowlisted as the single admin. Sign in with the
 password configured for that account in Firebase Authentication; the password
-is never stored in the source code.
+is never stored in the source code. If sign-in reports `auth/invalid-credential`,
+verify the account and password in Firebase Authentication, confirm the
+Email/Password provider is enabled, and make sure `admin_panel/.env` uses this
+app's Firebase project.
 
 To enable the allowlist on Firebase without Google Cloud CLI:
 

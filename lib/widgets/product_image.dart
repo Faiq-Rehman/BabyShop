@@ -23,7 +23,7 @@ class ProductImage extends StatelessWidget {
     }
     return Image.network(
       url,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
       errorBuilder: (_, _, _) => const ColoredBox(
         color: AppColors.warmBeige,
         child: Center(
